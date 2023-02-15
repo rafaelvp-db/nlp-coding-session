@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC 
-# MAGIC ## NLP Coding Session
+# MAGIC ## NLP Coding Session: Part 1
 # MAGIC 
 # MAGIC In this notebook, we will use classic ML models for training an intent prediction model. We will use the [banking77](https://huggingface.co/datasets/banking77) dataset from Hugging Face, along with the following:
 # MAGIC 
@@ -53,10 +53,10 @@ tokenizer = RegexpTokenizer(r'\w+')
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
 
-def preprocess(text_series: pd.Series) -> pd.Series:
+def preprocess(df: pd.DataFrame) -> pd.Series:
 
   # Lower case and remove stopwords
-  text_series = text_series.str.lower()
+  text_series = df["text"].str.lower()
   output = []
 
   for item in text_series.values:
@@ -71,17 +71,12 @@ def preprocess(text_series: pd.Series) -> pd.Series:
     text = lemmatizer.lemmatize(text)
     output.append(text)
 
-  text_series = output
-  return text_series
+  return output
 
 # COMMAND ----------
 
 test_sentence = pd.DataFrame({"text": ["The book, on the table it is!"]})
-preprocess(test_sentence["text"])
-
-# COMMAND ----------
-
-train_df
+preprocess(test_sentence)
 
 # COMMAND ----------
 
@@ -90,10 +85,11 @@ from sklearn.preprocessing import FunctionTransformer
 from sklearn.pipeline import Pipeline
 
 preprocessor = FunctionTransformer(preprocess)
-preprocessor.fit_transform(train_df["text"])
+preprocessor.fit_transform(train_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,Training our Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
@@ -110,9 +106,9 @@ pipeline = Pipeline([
 
 with mlflow.start_run(run_name = "sklearn_pipeline_1", nested = True) as run:
 
-  pipeline.fit(train_df["text"], train_df["label"])
-  pred = pipeline.predict(test_df["text"])
-  prob = pipeline.predict_proba(test_df["text"])
+  pipeline.fit(train_df.loc[:, ["text"]], train_df["label"])
+  pred = pipeline.predict(test_df.loc[:, ["text"]])
+  prob = pipeline.predict_proba(test_df.loc[:, ["text"]])
 
   metrics = {
     "accuracy_test": accuracy_score(test_df['label'], pred),
@@ -148,6 +144,55 @@ target_run_id
 mlflow.register_model(
   f"runs:/{target_run_id}/model",
   "sklearn_chatbot"
+)
+
+# COMMAND ----------
+
+# DBTITLE 1,Non-NLTK Version
+pipeline_no_nltk = Pipeline([
+  ("vectorizer", vectorizer),
+  ("clf", clf)
+])
+
+# COMMAND ----------
+
+with mlflow.start_run(run_name = "sklearn_pipeline_no_nltk", nested = True) as run:
+
+  pipeline_no_nltk.fit(train_df["text"], train_df["label"])
+  pred = pipeline_no_nltk.predict(test_df["text"])
+  prob = pipeline_no_nltk.predict_proba(test_df["text"])
+
+  metrics = {
+    "accuracy_test": accuracy_score(test_df['label'], pred),
+    "f1_test": f1_score(test_df['label'], pred, average = 'weighted'),
+    "roc_test": roc_auc_score(
+      y_true = test_df['label'].values,
+      y_score = prob,
+      average = 'weighted',
+      multi_class = 'ovr'
+    )
+  }
+
+  mlflow.log_metrics(metrics)
+
+# COMMAND ----------
+
+metrics = mlflow.search_runs(
+  filter_string = "attributes.run_name = 'sklearn_pipeline_no_nltk' and status = 'FINISHED'",
+  order_by = ["metrics.f1_score_test DESC"])
+
+metrics
+
+# COMMAND ----------
+
+target_run_id = metrics.loc[0, "run_id"]
+target_run_id
+
+# COMMAND ----------
+
+mlflow.register_model(
+  f"runs:/{target_run_id}/model",
+  "sklearn_chatbot_no_nltk"
 )
 
 # COMMAND ----------
