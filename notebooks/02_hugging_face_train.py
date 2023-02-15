@@ -9,6 +9,21 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Hugging Face Example
+import torch.nn.functional as F 
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased")
+
+tokenized_segments = tokenizer(["I didn't like this movie"], return_tensors="pt", padding=True, truncation=True)
+tokenized_segments_input_ids, tokenized_segments_attention_mask = tokenized_segments.input_ids, tokenized_segments.attention_mask
+model_predictions = F.softmax(model(input_ids=tokenized_segments_input_ids, attention_mask=tokenized_segments_attention_mask)['logits'], dim=1)
+
+print("Positive probability: "+str(model_predictions[0][1].item()*100)+"%")
+print("Negative probability: "+str(model_predictions[0][0].item()*100)+"%")
+
+# COMMAND ----------
+
 # DBTITLE 1,Downloading our Dataset
 !pip install datasets
 
