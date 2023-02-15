@@ -99,8 +99,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 import mlflow
 
-mlflow.autolog(False)
-
 clf = LogisticRegression()
 vectorizer = TfidfVectorizer()
 
@@ -128,3 +126,30 @@ with mlflow.start_run(run_name = "sklearn_pipeline_1", nested = True) as run:
   }
 
   mlflow.log_metrics(metrics)
+  #mlflow.sklearn.log_model(pipeline, "sklearn_pipeline")
+
+# COMMAND ----------
+
+# DBTITLE 1,Visualizing our Metrics
+metrics = mlflow.search_runs(
+  filter_string = "status = 'FINISHED'",
+  order_by = ["metrics.f1_score_test DESC"])
+
+metrics
+
+# COMMAND ----------
+
+# DBTITLE 1,Registering our Model
+target_run_id = metrics.loc[0, "run_id"]
+target_run_id
+
+# COMMAND ----------
+
+mlflow.register_model(
+  f"runs:/{target_run_id}/model",
+  "sklearn_chatbot"
+)
+
+# COMMAND ----------
+
+
