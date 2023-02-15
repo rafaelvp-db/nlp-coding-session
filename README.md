@@ -6,9 +6,9 @@ This repo contains some simple examples of training and deploying **NLP** models
 
 Frameworks used:
 
-* Scikit-Learn
-* NLTK
-* Hugging Face
+* [Scikit-Learn](https://scikit-learn.org/stable/)
+* [NLTK](https://www.nltk.org/)
+* [Hugging Face](https://huggingface.co/)
 
 ### Dataset
 
